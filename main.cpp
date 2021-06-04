@@ -7,6 +7,7 @@
 
 #include "libpmem.h"
 #include "log.h"
+#include "log_lb.h"
 
 const uint64_t LOG_SIZE = 10 * 1024 * 1024;
 const int ENTRY_SIZE = 64;
@@ -19,7 +20,7 @@ const int ENTRY_SIZE = 64;
 int main(int argc, char** argv) {
     // init the NVM space, create the log for the overall space;
     // init parameter: NVM path, map size, log num, thread num;
-    if (argc != 6) {
+    if (argc != 7) {
         std::cout << "wrong parameter numbers\n";
         exit(-1);
     }
@@ -29,6 +30,7 @@ int main(int argc, char** argv) {
     int log_num = atoi(argv[3]);
     int thread_num = atoi(argv[4]);
     int op_num = atoi(argv[5]);
+    int use_log_lb = atoi(argv[6]);
 
     size_t mapped_len = 0;
     int is_pmem = false;
@@ -38,19 +40,29 @@ int main(int argc, char** argv) {
     std::cout << "mapped len [" << mapped_len << "], is_pmem[" << is_pmem << "]\n";
 
     // create N log
+    std::vector<NVMLoglb*> loglbs;
     std::vector<NVMLog*> logs;
-    for (int i = 0; i < log_num; i++) {
-        AllocRes res = total_log.Alloc(LOG_SIZE);
-        if (res.first == SUCCESS) {
-            std::cout << "Created log at [" << res.second << "]\n";
-            logs.push_back(new NVMLog(base, res.second, LOG_SIZE));
+    if (use_log_lb) {
+        for (int i = 0; i < log_num; i++) {
+            AllocRes res = total_log.Alloc(LOG_SIZE);
+            if (res.first == SUCCESS) {
+                std::cout << "Created log at [" << res.second << "]\n";
+                loglbs.push_back(new NVMLoglb(base, res.second, LOG_SIZE));
+            }
+        }
+    } else {
+        for (int i = 0; i < log_num; i++) {
+            AllocRes res = total_log.Alloc(LOG_SIZE);
+            if (res.first == SUCCESS) {
+                std::cout << "Created log at [" << res.second << "]\n";
+                logs.push_back(new NVMLog(base, res.second, LOG_SIZE));
+            }
         }
     }
-
     // launch N thread to write the log
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<int> rnd(0, log_num);
+    std::uniform_int_distribution<int> rnd(0, log_num - 1);
 
     char* payload = new char[ENTRY_SIZE];
     memset((void*)payload, 0, ENTRY_SIZE);
@@ -74,25 +86,39 @@ int main(int argc, char** argv) {
     std::vector<std::thread> threads;
     auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < thread_num; ++i) {
-        threads.push_back(std::thread([&]{
-            int cnt = 0;
-            for (int i = 0; i < op_per_thread; i++) {
-                // select a log in random;
-                int log_seq = rnd(gen);
-                // append 64 B to it
-                NVMLog* target_log = logs[log_seq];
-                std::pair<bool, uint64_t> res = target_log->Alloc(ENTRY_SIZE);
-                if (res.first == SUCCESS) {
-                    target_log->Append(res.second, std::string(payload, ENTRY_SIZE));
-                    finished.fetch_add(1, std::memory_order_release);
-                }
-            }}));
+        if (use_log_lb) {
+            threads.push_back(std::thread([&]{
+                int cnt = 0;
+                for (int i = 0; i < op_per_thread; i++) {
+                    // select a log in random;
+                    int log_seq = rnd(gen);
+                    // append 64 B to it
+                    NVMLoglb* target_log = loglbs[log_seq];
+                    target_log->lock();
+                    target_log->Append(std::string(payload, ENTRY_SIZE));
+                    target_log->unlock();
+                }}));
+        } else {
+            threads.push_back(std::thread([&]{
+                int cnt = 0;
+                for (int i = 0; i < op_per_thread; i++) {
+                    // select a log in random;
+                    int log_seq = rnd(gen);
+                    // append 64 B to it
+                    NVMLog* target_log = logs[log_seq];
+                    std::pair<bool, uint64_t> res = target_log->Alloc(ENTRY_SIZE);
+                    if (res.first == SUCCESS) {
+                        target_log->Append(res.second, std::string(payload, ENTRY_SIZE));
+                        //finished.fetch_add(1, std::memory_order_release);
+                    }
+                }}));
+        }
     }
     for (int i = 0; i < thread_num; ++i) {
         threads[i].join();
     }
     auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> elapse = end - start;
+    std::chrono::duration<double, std::micro> elapse = end - start;
 
     std::cout << "finished " << op_num << " operations, throughput: " << op_num / elapse.count() << " MOPS\n";
 
