@@ -9,6 +9,8 @@ pkg_check_modules(LIBPMEM REQUIRED libpmem)
 
 link_directories(${LIBPMEM_LIBRARY_DIRS})
 
+add_definitions(-DUSE_DRAM)
+
 add_executable(NVM_log "")
 target_sources(NVM_log PRIVATE
         "log.cc"

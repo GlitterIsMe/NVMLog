@@ -4,6 +4,7 @@
 #include <thread>
 #include <random>
 #include <chrono>
+#include <cstring>
 
 #include "libpmem.h"
 #include "log.h"
@@ -26,7 +27,7 @@ int main(int argc, char** argv) {
     }
 
     std::string nvm_path(argv[1]);
-    uint64_t map_size = atoi(argv[2]) * 1024 * 1024 * 1024;
+    uint64_t map_size = atoi(argv[2]);
     int log_num = atoi(argv[3]);
     int thread_num = atoi(argv[4]);
     int op_num = atoi(argv[5]);
@@ -34,8 +35,12 @@ int main(int argc, char** argv) {
 
     size_t mapped_len = 0;
     int is_pmem = false;
-    char* base = (char*)pmem_map_file(nvm_path.c_str(), map_size,
-                                      PMEM_FILE_CREATE, 0666, &mapped_len, &is_pmem);
+#ifdef USE_PMEM
+    char* base = (char*)pmem_map_file(nvm_path.c_str(), map_size * 1024 * 1024 * 1024,
+                                      PMEM_FILE_CREATE, 0, &mapped_len, &is_pmem);
+#elif defined(USE_DRAM)
+    char* base = new char[map_size * 1024 * 1024 *1024];
+#endif
     NVMLog total_log(base, 0, mapped_len);
     std::cout << "mapped len [" << mapped_len << "], is_pmem[" << is_pmem << "]\n";
 
