@@ -10,7 +10,7 @@
 #include "log.h"
 #include "log_lb.h"
 
-const uint64_t LOG_SIZE = 10 * 1024 * 1024;
+const uint64_t LOG_SIZE = 1024 * 1024 * 1024;
 const int ENTRY_SIZE = 64;
 
 // param_1: The path to the NVM
@@ -74,19 +74,6 @@ int main(int argc, char** argv) {
     std::atomic_uint finished(0);
 
     int op_per_thread = op_num / thread_num;
-    /*auto run_append = [&]{
-        int cnt = 0;
-        for (int i = 0; i < op_per_thread; i++) {
-            // select a log in random;
-            int log_seq = rnd(gen);
-            // append 64 B to it
-            NVMLog& target_log = logs[log_seq];
-            std::pair<bool, uint64_t> res = target_log.Alloc(ENTRY_SIZE);
-            if (res.first == SUCCESS) {
-                target_log.Append(res.second, std::string(payload, ENTRY_SIZE));
-                finished.fetch_add(1, std::memory_order_release);
-        }
-    };*/
     if (use_log_lb) assert(log_num == 1);
 
     std::vector<std::thread> threads;
@@ -101,7 +88,6 @@ int main(int argc, char** argv) {
                 }}));
         } else {
             threads.emplace_back(std::thread([&]{
-                int cnt = 0;
                 for (int j = 0; j < op_per_thread; j++) {
                     // select a log in random;
                     int log_seq = rnd(gen);
@@ -110,7 +96,9 @@ int main(int argc, char** argv) {
                     std::pair<bool, uint64_t> res = target_log->Alloc(ENTRY_SIZE);
                     if (res.first == SUCCESS) {
                         target_log->Append(res.second, std::string(payload, ENTRY_SIZE));
-                        //finished.fetch_add(1, std::memory_order_release);
+                    } else {
+                        std::cout << "Alloc failed, quit\n";
+                        return;
                     }
                 }}));
         }
