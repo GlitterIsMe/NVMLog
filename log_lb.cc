@@ -11,7 +11,11 @@ NVMLoglb::~NVMLoglb() {
 
 }
 
-void NVMLoglb::Append(const std::string src) {
+void NVMLoglb::Append(const std::string& src) {
     pmem_memcpy_persist((void*)(base_ + cur_), (void*)(src.c_str()), src.size());
     cur_ += src.size();
+}
+
+void NVMLoglb::Append(uint64_t offset, const std::string& src) {
+    pmem_memcpy_persist((void*)(base_ + offset), (void*)(src.c_str()), src.size()));
 }

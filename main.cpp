@@ -87,26 +87,22 @@ int main(int argc, char** argv) {
                 finished.fetch_add(1, std::memory_order_release);
         }
     };*/
+    if (use_log_lb) assert(log_num == 1);
 
     std::vector<std::thread> threads;
     auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < thread_num; ++i) {
         if (use_log_lb) {
-            threads.push_back(std::thread([&]{
-                int cnt = 0;
-                for (int i = 0; i < op_per_thread; i++) {
-                    // select a log in random;
-                    int log_seq = rnd(gen);
-                    // append 64 B to it
-                    NVMLoglb* target_log = loglbs[log_seq];
-                    target_log->lock();
-                    target_log->Append(std::string(payload, ENTRY_SIZE));
-                    target_log->unlock();
+            NVMLoglb* target_log = loglbs[0];
+            threads.emplace_back(std::thread([&]{
+                uint64_t offset = ENTRY_SIZE * i;
+                for (int j = 0; j < op_per_thread; j++, offset + thread_num * ENTRY_SIZE) {
+                    target_log->Append(offset, std::string(payload, ENTRY_SIZE));
                 }}));
         } else {
-            threads.push_back(std::thread([&]{
+            threads.emplace_back(std::thread([&]{
                 int cnt = 0;
-                for (int i = 0; i < op_per_thread; i++) {
+                for (int j = 0; j < op_per_thread; j++) {
                     // select a log in random;
                     int log_seq = rnd(gen);
                     // append 64 B to it

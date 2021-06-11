@@ -16,7 +16,8 @@ public:
     NVMLoglb(const char* base, uint64_t start_offset, uint64_t size);
     ~NVMLoglb();
 
-    void Append(const std::string src);
+    void Append(const std::string& src);
+    void Append(uint64_t offset, const std::string& src);
     void lock() {mu_.lock();};
     void unlock() {mu_.unlock();};
 
