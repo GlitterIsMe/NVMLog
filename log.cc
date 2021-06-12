@@ -5,7 +5,9 @@
 #include "log.h"
 
 NVMLog::NVMLog(const char *base, uint64_t start_offset, uint64_t size)
-    :base_(base), start_(start_offset), size_(size){}
+    :base_(base), start_(start_offset), size_(size){
+    cur_ = 0;
+}
 
 NVMLog::~NVMLog() {
 

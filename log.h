@@ -8,7 +8,11 @@
 #include <cstdio>
 #include <string>
 #include <atomic>
+#ifdef USE_PMEM
 #include <libpmem.h>
+#elif defined(USE_DRAM)
+#include "libpmem.h"
+#endif
 
 enum AllocStatus {
     FAILED,
