@@ -20,6 +20,7 @@ target_sources(NVM_log PRIVATE
         "log.h"
         "log_lb.cc"
         "log_lb.h"
+        "histogram.cc"
         "main.cpp")
 
 target_include_directories(NVM_log PUBLIC ${GFLAGS_INCLUDE_DIRS})
