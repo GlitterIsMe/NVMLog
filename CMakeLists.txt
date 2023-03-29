@@ -4,10 +4,10 @@ project(NVM_log)
 set(CMAKE_CXX_STANDARD 14)
 
 include(FindThreads)
-#find_package(PkgConfig QUIET)
-#pkg_check_modules(LIBPMEM REQUIRED libpmem)
+find_package(PkgConfig QUIET)
+pkg_check_modules(LIBPMEM REQUIRED libpmem)
 
-find_package(LIBPMEM)
+#find_package(LIBPMEM)
 
 find_package(GFLAGS REQUIRED)
 
@@ -22,7 +22,7 @@ target_sources(NVM_log PRIVATE
         "log_lb.h"
         "main.cpp")
 
-target_include_directories(NVM_log PUBLIC ${LIBPMEM_INCLUDE_DIRS} ${GFLAGS_INCLUDE_DIRS})
+target_include_directories(NVM_log PUBLIC ${GFLAGS_INCLUDE_DIRS})
 target_link_libraries(NVM_log ${LIBPMEM_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${GFLAGS_LIBRARIES})
 
 if (LIBPMEM_FOUND)

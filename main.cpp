@@ -125,5 +125,14 @@ int main(int argc, char** argv) {
 
     std::cout << "finished " << FLAGS_nums << " operations, throughput: " << FLAGS_nums / elapse.count() << " MOPS\n";
 
+    delete[] payload;
+    for (int i = 0; i < logs.size(); i++) {
+        delete logs[i];
+    }
+
+    for (int i = 0; i < loglbs.size(); i++) {
+        delete loglbs[i];
+    }
+
     return 0;
 }
